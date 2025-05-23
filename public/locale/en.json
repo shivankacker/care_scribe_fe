@@ -69,5 +69,8 @@
   "field_id" : "Field ID",
   "field_name" : "Field Name",
   "value" : "Value",
-  "no_fields_autofilled" : "No fields were autofilled"
+  "no_fields_autofilled" : "No fields were autofilled",
+  "patient_name" : "Patient Name",
+  "facility_name" : "Facility Name",
+  "search_by": "Search by"
 }

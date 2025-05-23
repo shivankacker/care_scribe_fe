@@ -35,9 +35,12 @@ import { useTranslation } from "react-i18next";
 export default function HistoryListPage() {
   const { t } = useTranslation(I18NNAMESPACE);
   const [statsEnabled, setStatsEnabled] = useAtom(enableStatisticsAtom);
-  const [{ page: initPage }] = useQueryParams();
+  const [{ page: initPage }, setQueryParams] = useQueryParams();
   const page = initPage || 1;
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState({
+    type: "facility",
+    value: "",
+  });
   const [filters, setFilters] = useState<{
     status: string;
     date_range: {
@@ -62,17 +65,26 @@ export default function HistoryListPage() {
         status: filters.status === "all" ? undefined : filters.status,
         // start_date: filters.date_range.start,
         // end_date: filters.date_range.end,
-        search: search === "" ? undefined : search,
+        facility: search.type === "facility" ? search.value : undefined,
+        encounter_id: search.type === "encounter" ? search.value : undefined,
+        patient: search.type === "patient" ? search.value : undefined,
         offset: (Number(page) - 1) * 10,
         limit: 10,
       }),
   });
 
   const handleSearch = debounce((value: string) => {
-    setSearch(value);
+    setSearch({ ...search, value });
+    setQueryParams({ page: 1 });
   }, 500);
 
   const history = historyQuery.data?.results;
+
+  const searchOptions = [
+    { value: "facility", label: t("facility_name") },
+    { value: "encounter", label: t("encounter_id") },
+    { value: "patient", label: t("patient_name") },
+  ];
 
   return (
     <div className="px-4 md:px-6">
@@ -81,11 +93,30 @@ export default function HistoryListPage() {
       </h1>
       <div className="mt-4 flex flex-col gap-2">
         <div className="flex flex-col items-center justify-between gap-2 md:flex-row">
-          <Input
-            placeholder={t("search")}
-            className="w-full bg-white md:max-w-64 md:min-w-24"
-            onChange={(e) => handleSearch(e.target.value)}
-          />
+          <div className="flex w-full flex-col items-center gap-2 md:w-auto md:flex-row">
+            <Input
+              placeholder={t("search_by")}
+              className="w-full bg-white md:max-w-48 md:min-w-24"
+              onChange={(e) => handleSearch(e.target.value)}
+            />
+            <Select
+              value={search.type}
+              onValueChange={(value) =>
+                setSearch({ ...search, type: value, value: "" })
+              }
+            >
+              <SelectTrigger className="w-full bg-white text-xs md:w-[150px]">
+                <SelectValue placeholder={t("search_by")} />
+              </SelectTrigger>
+              <SelectContent>
+                {searchOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex w-full flex-col items-center gap-2 md:w-auto md:flex-row">
             <div className="flex items-center gap-2 text-sm">
               <Switch
@@ -144,6 +175,7 @@ export default function HistoryListPage() {
             <TableRow>
               <TableHead>{t("date_and_time")}</TableHead>
               <TableHead>{t("status")}</TableHead>
+              <TableHead>{t("patient_name")}</TableHead>
               <TableHead>{t("facility")}</TableHead>
               <TableHead>{t("encounter_id")}</TableHead>
               {statsEnabled && (
@@ -176,10 +208,14 @@ export default function HistoryListPage() {
                 <TableCell>
                   <StatusBadge status={scribe.status} />
                 </TableCell>
+                <TableCell className="">
+                  {scribe.requested_in_encounter.patient.name}
+                </TableCell>
                 <TableCell>{scribe.requested_in_facility.name}</TableCell>
                 <TableCell className="max-w-[100px] truncate">
                   {scribe.requested_in_encounter.external_id}
                 </TableCell>
+
                 {statsEnabled && (
                   <>
                     <TableCell>{scribe.meta.provider || "N/A"}</TableCell>
@@ -215,12 +251,13 @@ export default function HistoryListPage() {
             {t("no_scribe_history")}
           </div>
         )}
-        {historyQuery.data && (
-          <PaginationControls
-            data={historyQuery.data}
-            onPageChange={(url) => navigate(url)}
-          />
-        )}
+        {historyQuery.data &&
+          (historyQuery.data.next || historyQuery.data.previous) && (
+            <PaginationControls
+              data={historyQuery.data}
+              onPageChange={(url) => navigate(url)}
+            />
+          )}
       </div>
     </div>
   );

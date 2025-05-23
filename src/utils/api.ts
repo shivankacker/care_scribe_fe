@@ -85,7 +85,9 @@ export const API = {
       filters: {
         ordering?: string;
         status?: string;
-        search?: string;
+        encounter_id?: string;
+        patient?: string;
+        facility?: string;
         offset?: number;
         limit?: number;
       } = {},

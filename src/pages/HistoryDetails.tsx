@@ -22,6 +22,7 @@ import {
   CheckboxIcon,
   ClockIcon,
   ExternalLinkIcon,
+  FaceIcon,
   FilePlusIcon,
   PersonIcon,
 } from "@radix-ui/react-icons";
@@ -67,6 +68,18 @@ export default function HistoryDetailsPage(props: {
       icon: <FilePlusIcon />,
       label: t("facility"),
       value: scribe?.requested_in_facility.name,
+    },
+    {
+      icon: <FaceIcon />,
+      label: t("patient"),
+      value: (
+        <Link
+          className="text-blue-500 hover:underline"
+          href={`/facility/${scribe?.requested_in_facility.id}/patient/${scribe?.requested_in_encounter.patient.external_id}`}
+        >
+          {scribe?.requested_in_encounter.patient.name}
+        </Link>
+      ),
     },
     {
       icon: <ExternalLinkIcon />,
@@ -195,8 +208,8 @@ export default function HistoryDetailsPage(props: {
           <div className="mt-4 rounded-lg border border-neutral-200 bg-white p-4">
             <div
               className={cn(
-                `grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3`,
-                onUseScribe && "md:grid-cols-1 lg:grid-cols-1",
+                `grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`,
+                onUseScribe && "md:grid-cols-1 lg:grid-cols-1 xl:grid-cols-1",
               )}
             >
               {overviewDetails.map((detail, index) => (
@@ -243,7 +256,7 @@ export default function HistoryDetailsPage(props: {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>{t("field_id")}</TableHead>
+                        {statsEnabled && <TableHead>{t("field_id")}</TableHead>}
                         <TableHead>{t("field_name")}</TableHead>
                         <TableHead>{t("value")}</TableHead>
                       </TableRow>
@@ -253,14 +266,14 @@ export default function HistoryDetailsPage(props: {
                         .filter(([key]) => key !== "__scribe__transcription")
                         .map(([key, value], index) => (
                           <TableRow key={index}>
-                            <TableCell>{key}</TableCell>
+                            {statsEnabled && <TableCell>{key}</TableCell>}
                             <TableCell>
                               {
                                 scribe?.form_data.find((f) => f.id === key)
                                   ?.friendlyName
                               }
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="max-w-[300px] break-words whitespace-pre-wrap">
                               {renderFieldValue({ value } as { value: string })}
                             </TableCell>
                           </TableRow>
