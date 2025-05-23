@@ -731,7 +731,7 @@ export function Controller(props: {
                     setEnableStatistics(checked);
                   }}
                 >
-                  {t("enable_statistics")}
+                  {t("developer_mode")}
                 </DropdownMenuCheckboxItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
