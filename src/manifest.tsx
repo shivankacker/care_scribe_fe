@@ -21,14 +21,20 @@ interface Manifest {
   userNavItems?: NavigationLink[];
 }
 
-const AutofillHistoryLazy = lazy(() => import("./pages/AutofillHistory"));
+const HistoryListLazy = lazy(() => import("./pages/HistoryList"));
+const HistoryDetailsLazy = lazy(() => import("./pages/HistoryDetails"));
 
 const manifest: Manifest = {
   plugin: "care-scribe",
   routes: {
     "/facility/:facilityId/users/:user/scribe-history": () => (
       <Page>
-        <AutofillHistoryLazy />
+        <HistoryListLazy />
+      </Page>
+    ),
+    "/facility/:facilityId/users/:user/scribe-history/:id": ({ id }) => (
+      <Page>
+        <HistoryDetailsLazy scribeId={id} />
       </Page>
     ),
   },

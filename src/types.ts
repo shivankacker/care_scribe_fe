@@ -56,6 +56,7 @@ export type ScribeModel = {
     id: string;
     options?: any[];
     type: string;
+    current: any;
   }[];
   requested_in_facility: {
     id: FacilityModel["id"];
@@ -63,6 +64,10 @@ export type ScribeModel = {
   };
   requested_in_encounter: {
     external_id: string;
+    patient: {
+      external_id: string;
+      name: string;
+    };
   };
   transcript: string;
   ai_response: string;
@@ -76,6 +81,9 @@ export type ScribeModel = {
     completion_input_tokens?: number;
     completion_time?: number;
     completion_id?: string;
+    chat_model?: string;
+    audio_model?: string;
+    prompt?: string;
   };
   created_date: string;
   modified_date: string;

@@ -1,14 +1,7 @@
 import SidebarIcon from "@/components/icon";
-import ScribeDialog from "@/components/ScribeDialog";
+import { PaginationControls } from "@/components/Pagination";
 import { getStatusConfig, StatusBadge } from "@/components/StatusBadge";
 import { Input } from "@/components/ui/input";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -27,21 +20,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { enableStatisticsAtom } from "@/store";
-import { SCRIBE_STATUS, ScribeModel } from "@/types";
+import { SCRIBE_STATUS } from "@/types";
 import { API } from "@/utils/api";
 import { I18NNAMESPACE } from "@/utils/constants";
 import { debounce } from "@/utils/utils";
-import { ClockIcon } from "@radix-ui/react-icons";
+import { ClockIcon, TextAlignBottomIcon } from "@radix-ui/react-icons";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useAtom } from "jotai";
-import { useQueryParams } from "raviger";
+import { navigate, useQueryParams } from "raviger";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-export default function AutofillHistory() {
+export default function HistoryListPage() {
   const { t } = useTranslation(I18NNAMESPACE);
-  const [scribe, setScribe] = useState<ScribeModel | null>(null);
   const [statsEnabled, setStatsEnabled] = useAtom(enableStatisticsAtom);
   const [{ page: initPage }] = useQueryParams();
   const page = initPage || 1;
@@ -82,46 +74,19 @@ export default function AutofillHistory() {
 
   const history = historyQuery.data?.results;
 
-  const totalHistory = historyQuery.data?.count || 0;
-  const totalPages = Math.ceil(totalHistory / 10);
-
-  const timePresets = [
-    {
-      label: t("last_24_hours"),
-      value: {
-        start: dayjs().subtract(1, "day").toISOString(),
-        end: dayjs().toISOString(),
-      },
-    },
-    {
-      label: t("last_7_days"),
-      value: {
-        start: dayjs().subtract(7, "day").toISOString(),
-        end: dayjs().toISOString(),
-      },
-    },
-    {
-      label: t("last_30_days"),
-      value: {
-        start: dayjs().subtract(30, "day").toISOString(),
-        end: dayjs().toISOString(),
-      },
-    },
-  ];
-
   return (
-    <div className="px-6 md:px-4">
+    <div className="px-4 md:px-6">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
         {t("scribe_history")}
       </h1>
       <div className="mt-4 flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col items-center justify-between gap-2 md:flex-row">
           <Input
             placeholder={t("search")}
-            className="max-w-64 min-w-24 bg-white"
+            className="w-full bg-white md:max-w-64 md:min-w-24"
             onChange={(e) => handleSearch(e.target.value)}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col items-center gap-2 md:w-auto md:flex-row">
             <div className="flex items-center gap-2 text-sm">
               <Switch
                 checked={statsEnabled}
@@ -137,7 +102,7 @@ export default function AutofillHistory() {
               }}
               defaultValue={filters.status}
             >
-              <SelectTrigger className="w-[180px] bg-white">
+              <SelectTrigger className="w-full bg-white md:w-[180px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -151,37 +116,12 @@ export default function AutofillHistory() {
             </Select>
             <Select
               onValueChange={(value) => {
-                const selected = timePresets.find(
-                  (preset) => preset.label === value,
-                );
-                if (selected) {
-                  setFilters({
-                    ...filters,
-                    date_range: selected.value,
-                  });
-                }
-              }}
-              defaultValue={"all"}
-            >
-              <SelectTrigger className="w-[180px] bg-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("all_time")}</SelectItem>
-                {timePresets.map((preset) => (
-                  <SelectItem key={preset.label} value={preset.label}>
-                    {preset.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              onValueChange={(value) => {
                 setFilters({ ...filters, ordering: value });
               }}
               defaultValue={filters.ordering}
             >
-              <SelectTrigger className="w-[180px] bg-white">
+              <SelectTrigger className="w-full bg-white md:w-[180px]">
+                <TextAlignBottomIcon className="w-4" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -220,7 +160,11 @@ export default function AutofillHistory() {
               <TableRow
                 key={scribe.external_id}
                 className="cursor-pointer"
-                onClick={() => setScribe(scribe)}
+                onClick={() =>
+                  navigate(
+                    `/facility/${scribe.requested_in_facility.id}/users/${scribe.requested_by}/scribe-history/${scribe.external_id}`,
+                  )
+                }
               >
                 <TableCell>
                   {dayjs(scribe.created_date).format("D MMMM YYYY")}
@@ -271,27 +215,13 @@ export default function AutofillHistory() {
             {t("no_scribe_history")}
           </div>
         )}
-        <Pagination>
-          <PaginationContent>
-            {page > 1 && (
-              <PaginationItem>
-                <PaginationPrevious href={`?page=${Number(page) - 1}`} />
-              </PaginationItem>
-            )}
-            {page < totalPages && (
-              <PaginationItem>
-                <PaginationNext href={`?page=${Number(page) + 1}`} />
-              </PaginationItem>
-            )}
-          </PaginationContent>
-        </Pagination>
+        {historyQuery.data && (
+          <PaginationControls
+            data={historyQuery.data}
+            onPageChange={(url) => navigate(url)}
+          />
+        )}
       </div>
-      <ScribeDialog
-        scribe={scribe}
-        onClose={() => {
-          setScribe(null);
-        }}
-      />
     </div>
   );
 }
