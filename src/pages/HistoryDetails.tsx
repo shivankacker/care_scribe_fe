@@ -339,14 +339,14 @@ export default function HistoryDetailsPage(props: {
               <TabsContent value="metadata">
                 <h3 className="text-xl">{t("metadata")}</h3>
                 <div className="mt-4 mb-2 font-semibold">{t("prompt")}</div>
-                <pre className="max-h-64 overflow-y-auto rounded-md bg-neutral-100 p-2 text-xs break-words whitespace-pre-wrap">
+                <pre className="max-h-64 overflow-y-auto rounded-md bg-neutral-100 p-2 text-xs break-all whitespace-pre-wrap">
                   {scribe?.meta.prompt}
                 </pre>
 
                 <div className="mt-4 mb-2 font-semibold">
                   {t("ai_response")}
                 </div>
-                <pre className="mt-4 max-h-64 overflow-y-auto rounded-md bg-neutral-100 p-2 text-xs break-words whitespace-pre-wrap">
+                <pre className="mt-4 max-h-64 overflow-y-auto rounded-md bg-neutral-100 p-2 text-xs break-all whitespace-pre-wrap">
                   {scribe?.ai_response}
                 </pre>
                 <div
