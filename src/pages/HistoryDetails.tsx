@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { enableStatisticsAtom } from "@/store";
+import { devModeAtom } from "@/store";
 import { ScribeModel } from "@/types";
 import { API } from "@/utils/api";
 import { I18NNAMESPACE } from "@/utils/constants";
@@ -36,7 +36,6 @@ import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useAtom } from "jotai";
 import { Link } from "raviger";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export default function HistoryDetailsPage(props: {
@@ -44,8 +43,7 @@ export default function HistoryDetailsPage(props: {
   onUseScribe?: (scribe: ScribeModel) => void;
 }) {
   const { scribeId, onUseScribe } = props;
-  const [statsEnabled, setStatsEnabled] = useAtom(enableStatisticsAtom);
-  const [parsedAiResponse, setParsedAiResponse] = useState<any>(null);
+  const [statsEnabled, setStatsEnabled] = useAtom(devModeAtom);
 
   const { t } = useTranslation(I18NNAMESPACE);
 
@@ -206,30 +204,22 @@ export default function HistoryDetailsPage(props: {
     },
     {
       label: t("end_time"),
-      value: dayjs(scribe?.created_date)
-        .add(
-          scribe?.meta.iterations?.reduce(
-            (acc, iteration) =>
-              acc +
-              (iteration.transcription_time || 0) +
-              (iteration.completion_time || 0),
-            0,
-          ) || 0,
-          "second",
-        )
-        .format("DD/MM/YYYY HH:mm:ss"),
+      value: scribe?.meta.iterations?.length
+        ? dayjs(scribe?.created_date)
+            .add(
+              scribe?.meta.iterations?.reduce(
+                (acc, iteration) =>
+                  acc +
+                  (iteration.transcription_time || 0) +
+                  (iteration.completion_time || 0),
+                0,
+              ) || 0,
+              "second",
+            )
+            .format("DD/MM/YYYY HH:mm:ss")
+        : "-",
     },
   ];
-
-  useEffect(() => {
-    if (scribe?.ai_response) {
-      try {
-        setParsedAiResponse(scribe.ai_response);
-      } catch (error) {
-        console.error("Failed to parse AI response:", error);
-      }
-    }
-  }, [scribe]);
 
   return (
     <div className="px-4 md:px-6">
@@ -300,7 +290,7 @@ export default function HistoryDetailsPage(props: {
             <div className="mt-4 rounded-lg border border-neutral-200 bg-white p-4">
               <TabsContent value="summary">
                 <h3 className="text-xl">{t("ai_summary")}</h3>
-                {parsedAiResponse && (
+                {scribe?.ai_response && (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -310,12 +300,27 @@ export default function HistoryDetailsPage(props: {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {Object.entries(parsedAiResponse)
+                      {Object.entries(scribe.ai_response)
                         .filter(([key]) => key !== "__scribe__transcription")
                         .map(([key, value], index) => {
-                          const field = scribe?.form_data
-                            .flatMap((f) => f.fields)
-                            .find((f) => f.id === key);
+                          // Helper to recursively find a field by id in nested fields
+                          function findFieldById(
+                            fields: any[],
+                            id: string,
+                          ): any | undefined {
+                            for (const field of fields) {
+                              if (field.id === id) return field;
+                              if (field.fields) {
+                                const found = findFieldById(field.fields, id);
+                                if (found) return found;
+                              }
+                            }
+                            return undefined;
+                          }
+
+                          const allFields =
+                            scribe?.form_data?.flatMap((f) => f.fields) ?? [];
+                          const field = findFieldById(allFields, key);
                           return (
                             <TableRow key={index}>
                               {statsEnabled && <TableCell>{key}</TableCell>}
@@ -333,8 +338,8 @@ export default function HistoryDetailsPage(props: {
                     </TableBody>
                   </Table>
                 )}
-                {!parsedAiResponse ||
-                  (Object.keys(parsedAiResponse).filter(
+                {!scribe?.ai_response ||
+                  (Object.keys(scribe?.ai_response).filter(
                     (k) => k !== "__scribe__transcription",
                   ).length === 0 && (
                     <div className="flex flex-col items-center justify-center gap-4 rounded-lg opacity-50">

@@ -11,8 +11,8 @@ export const controllerPositionAtom = atomWithStorage<ScribeControllerPosition>(
   "scribe-controller-position",
   "bottom-right",
 );
-export const enableStatisticsAtom = atomWithStorage<boolean>(
-  "scribe-enable-statistics",
+export const devModeAtom = atomWithStorage<boolean>(
+  "scribe-enable-dev-mode",
   false,
 );
 export const containerRefAtom = atom<

@@ -57,7 +57,7 @@ import { useAtom } from "jotai/react";
 import {
   controllerPositionAtom,
   microphoneAtom,
-  enableStatisticsAtom,
+  devModeAtom,
   containerRefAtom,
 } from "@/store";
 import { twMerge } from "tailwind-merge";
@@ -116,7 +116,7 @@ export function Controller(props: {
   const [toReview, setToReview] = useState<ScribeFieldSuggestion[]>();
   const [openEditTranscript, setOpenEditTranscript] = useState(false);
   const [currentMic, setCurrentMic] = useAtom(microphoneAtom);
-  const [enableStatistics, setEnableStatistics] = useAtom(enableStatisticsAtom);
+  const [devMode, setEnableStatistics] = useAtom(devModeAtom);
   const [fetchMicrophones, setFetchMicrophones] = useState(false);
   const { microphones, error: micError } = useMicrophones(!fetchMicrophones);
   const [controllerPosition] = useAtom(controllerPositionAtom);
@@ -515,14 +515,17 @@ export function Controller(props: {
     setToReview(getFieldsToReview(aiResponse, fields));
   };
 
-  const handleCancel = (loadSnapshot: boolean = true) => {
+  const handleCancel = (
+    status: ScribeStatus = "IDLE",
+    loadSnapshot: boolean = true,
+  ) => {
     isAbortedRef.current = true;
     if (formStateSnapshot && loadSnapshot) {
       props.setFormState(formStateSnapshot);
     }
     setFormStateSnapshot(null);
     timer.reset();
-    setStatus("IDLE");
+    setStatus(status);
     resetRecording();
     setToReview(undefined);
     setFiles([]);
@@ -532,16 +535,20 @@ export function Controller(props: {
   };
 
   const handleProcessFile = async () => {
+    isAbortedRef.current = false;
     setStatus("UPLOADING");
     const fields = getQuestionInputs(props.formState);
     const instanceId = await createScribeInstance(fields);
+    if (isAbortedRef.current) return;
     setInstanceId(instanceId);
     setStatus("TRANSCRIBING");
     const transcript = await getTranscript(instanceId);
+    if (isAbortedRef.current) return;
     setLastTranscript(transcript);
     setTranscript(transcript);
     setStatus("THINKING");
     const aiResponse = await getAIResponse(instanceId, fields);
+    if (isAbortedRef.current) return;
     queryClient.invalidateQueries({ queryKey: ["scribe-history"] });
     if (!aiResponse) return;
     setStatus("REVIEWING");
@@ -630,7 +637,7 @@ export function Controller(props: {
                 />
                 {typeof lastTranscript !== "undefined" &&
                   status === "REVIEWING" &&
-                  enableStatistics &&
+                  devMode &&
                   scribe?.meta && <MetaInformation meta={scribe.meta} />}
                 <Button
                   // loading={status !== "REVIEWING"}
@@ -657,7 +664,7 @@ export function Controller(props: {
               <div className="flex flex-col items-center justify-center gap-4 py-4">
                 <CrossCircledIcon className="h-8 w-8" />
                 {t("scribe_error")}
-                {enableStatistics && scribe?.meta.error && (
+                {devMode && scribe?.meta.error && (
                   <pre className="max-h-20 w-52 overflow-auto rounded-md bg-red-100 p-2 text-xs break-words whitespace-pre-wrap text-red-500">
                     {scribe?.meta.error}
                   </pre>
@@ -736,7 +743,7 @@ export function Controller(props: {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
-                  checked={enableStatistics}
+                  checked={devMode}
                   onCheckedChange={(checked) => {
                     setEnableStatistics(checked);
                   }}
@@ -777,7 +784,7 @@ export function Controller(props: {
               status === "ATTACHING"
                 ? handleProcessFile
                 : files.length > 0
-                  ? () => setStatus("ATTACHING")
+                  ? () => handleCancel("ATTACHING")
                   : status !== "RECORDING"
                     ? handleStartRecording
                     : handleStopRecording
@@ -793,7 +800,7 @@ export function Controller(props: {
           onReviewComplete={async (approvedFields) => {
             if (approvedFields.some((a) => a.approved))
               toast.success(t("autofilled_fields"));
-            handleCancel(false);
+            handleCancel("IDLE", false);
           }}
         />
       )}
@@ -801,6 +808,7 @@ export function Controller(props: {
         open={historySheetOpen}
         setOpen={setHistorySheetOpen}
         onUseScribe={async (scribe) => {
+          isAbortedRef.current = false;
           setStatus("THINKING");
           const fields = getQuestionInputs(props.formState);
           const airesponse = await getAIResponse(scribe.external_id, fields);

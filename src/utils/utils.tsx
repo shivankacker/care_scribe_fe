@@ -6,7 +6,7 @@ import {
   ScribeHydratedField,
   ScribeHydratedQuestionnaire,
   ScribeQuestionnaire,
-  ValueSetSystem,
+  VALUESET_SYSTEM_NAMES,
 } from "../types";
 import clsx, { ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -335,7 +335,10 @@ export function debounce<T extends unknown[], U>(
   };
 }
 
-export async function getCodeFromQuery(query: string, type: ValueSetSystem) {
+export async function getCodeFromQuery(
+  query: string,
+  type: keyof typeof VALUESET_SYSTEM_NAMES,
+) {
   const valuesets = await API.valuesets.expand(type, query);
   const validCode = valuesets.results[0];
 

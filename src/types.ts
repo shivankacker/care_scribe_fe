@@ -140,11 +140,6 @@ export enum ScribeFileType {
   DOCUMENT = 2,
 }
 
-export type ScribeFieldOption = {
-  value: string;
-  text: string;
-};
-
 export type ScribeQuestionnaire = {
   title: string;
   description: string;
@@ -163,10 +158,6 @@ export type ScribeAIResponse = {
     value: unknown;
     note?: string;
   };
-};
-
-export type ScribePromptMap = {
-  [key in QuestionType | "default"]?: { prompt: string; example: unknown };
 };
 
 export type ScribeFieldSuggestion = ScribeHydratedAndRawField & {
@@ -275,21 +266,7 @@ export interface FormQuestion {
   repeats?: boolean;
 }
 
-export type ValueSetSystem =
-  | "system-allergy-code"
-  | "system-condition-code"
-  | "system-medication"
-  | "system-additional-instruction"
-  | "system-administration-method"
-  | "system-as-needed-reason"
-  | "system-body-site"
-  | "system-route"
-  | "system-observation"
-  | "system-body-site-observation"
-  | "system-collection-method"
-  | "system-ucum-units";
-
-export const VALUESET_SYSTEM_NAMES: { [key in ValueSetSystem]: string } = {
+export const VALUESET_SYSTEM_NAMES = {
   "system-allergy-code": "Allergy",
   "system-condition-code": "Condition",
   "system-medication": "Medication",
@@ -302,7 +279,7 @@ export const VALUESET_SYSTEM_NAMES: { [key in ValueSetSystem]: string } = {
   "system-body-site-observation": "Body Site Observation",
   "system-collection-method": "Collection Method",
   "system-ucum-units": "UCUM Units",
-};
+} as const;
 
 export interface Code {
   system: string;

@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { enableStatisticsAtom } from "@/store";
+import { devModeAtom } from "@/store";
 import { SCRIBE_STATUS } from "@/types";
 import { API } from "@/utils/api";
 import { I18NNAMESPACE } from "@/utils/constants";
@@ -34,7 +34,7 @@ import { useTranslation } from "react-i18next";
 
 export default function HistoryListPage() {
   const { t } = useTranslation(I18NNAMESPACE);
-  const [statsEnabled, setStatsEnabled] = useAtom(enableStatisticsAtom);
+  const [statsEnabled, setStatsEnabled] = useAtom(devModeAtom);
   const [{ page: initPage }, setQueryParams] = useQueryParams();
   const page = initPage || 1;
   const [search, setSearch] = useState({
