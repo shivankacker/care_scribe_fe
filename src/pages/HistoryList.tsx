@@ -194,7 +194,7 @@ export default function HistoryListPage() {
                 className="cursor-pointer"
                 onClick={() =>
                   navigate(
-                    `/facility/${scribe.requested_in_facility?.id}/users/${scribe.requested_by}/scribe-history/${scribe.external_id}`,
+                    `/facility/${scribe.requested_in_facility?.id}/users/${scribe.requested_by.username}/scribe-history/${scribe.external_id}`,
                   )
                 }
               >

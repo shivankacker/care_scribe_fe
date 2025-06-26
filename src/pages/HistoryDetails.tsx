@@ -21,6 +21,7 @@ import { devModeAtom } from "@/store";
 import { ScribeModel } from "@/types";
 import { API } from "@/utils/api";
 import { I18NNAMESPACE } from "@/utils/constants";
+import STRUCTURES from "@/utils/structures";
 import { cn, renderFieldValue } from "@/utils/utils";
 import {
   CalendarIcon,
@@ -302,7 +303,7 @@ export default function HistoryDetailsPage(props: {
                     <TableBody>
                       {Object.entries(scribe.ai_response)
                         .filter(([key]) => key !== "__scribe__transcription")
-                        .map(([key, value], index) => {
+                        .map(([key], index) => {
                           // Helper to recursively find a field by id in nested fields
                           function findFieldById(
                             fields: any[],
@@ -321,16 +322,46 @@ export default function HistoryDetailsPage(props: {
                           const allFields =
                             scribe?.form_data?.flatMap((f) => f.fields) ?? [];
                           const field = findFieldById(allFields, key);
+                          const processedField =
+                            scribe.meta.processed_ai_response?.successful[key];
+                          const failures =
+                            scribe.meta.processed_ai_response?.failed[key];
                           return (
                             <TableRow key={index}>
                               {statsEnabled && <TableCell>{key}</TableCell>}
                               <TableCell>{field?.friendlyName}</TableCell>
                               <TableCell className="max-w-[300px] break-words whitespace-pre-wrap">
-                                {field?.structuredType
-                                  ? JSON.stringify(value)
-                                  : renderFieldValue({
-                                      value: (value as { value: string }).value,
-                                    })}
+                                {!!processedField && (
+                                  <div
+                                    dangerouslySetInnerHTML={{
+                                      __html: renderFieldValue({
+                                        value: field.structuredType
+                                          ? processedField
+                                          : processedField.value,
+                                        structure: field?.structuredType
+                                          ? STRUCTURES[
+                                              field.structuredType as keyof typeof STRUCTURES
+                                            ]
+                                          : undefined,
+                                      }),
+                                    }}
+                                  />
+                                )}
+                                {failures &&
+                                  failures.length > 0 &&
+                                  failures.map((failure, fIndex) => (
+                                    <div
+                                      key={fIndex}
+                                      className="mt-1 text-xs text-red-500"
+                                    >
+                                      {failure}
+                                    </div>
+                                  ))}
+                                {!processedField && (
+                                  <div className="mt-1 text-xs text-red-500">
+                                    {t("no_autofill")}
+                                  </div>
+                                )}
                               </TableCell>
                             </TableRow>
                           );

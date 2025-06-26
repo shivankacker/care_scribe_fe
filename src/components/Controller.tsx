@@ -245,6 +245,10 @@ export function Controller(props: {
         if (isAbortedRef.current) return;
         setTranscript(scribeTranscription);
       }
+      const processAiResponse = {
+        successful: {} as ScribeAIResponse,
+        failed: {} as Record<string, string[]>,
+      };
       // run type validations
       const changedData = (
         (await Promise.all(
@@ -281,9 +285,12 @@ export function Controller(props: {
               deserialized.errors?.forEach((error) => {
                 toast.error(error);
               });
+              processAiResponse.successful[k] = deserializedValue as any;
+              processAiResponse.failed[k] = deserialized.errors || [];
             } else {
               deserializedValue = (v as any).value;
               note = (v as any).note;
+              processAiResponse.successful[k] = v as any;
             }
 
             if (
@@ -323,10 +330,26 @@ export function Controller(props: {
         .map(([k, v]) => ({ [k as string]: v }))
         .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
+      updateProcessedResponse(scribeInstanceId, processAiResponse);
+
       return changedData as ScribeAIResponse;
     } catch (e) {
       console.error(e);
       setStatus("FAILED");
+    }
+  };
+
+  const updateProcessedResponse = async (
+    scribeInstanceId: string,
+    processedResponse: ScribeModel["meta"]["processed_ai_response"],
+  ) => {
+    try {
+      await API.scribe.update(scribeInstanceId, {
+        processed_ai_response: processedResponse,
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error(t("scribe_error"));
     }
   };
 

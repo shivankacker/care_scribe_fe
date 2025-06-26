@@ -14,6 +14,7 @@ import { API } from "./api";
 import { z } from "zod";
 import STRUCTURES, { arbitraryStructures } from "./structures";
 import zodToJsonSchema from "zod-to-json-schema";
+import Fuse from "fuse.js";
 
 export const getQuestionInputs: (formState: any) => ScribeQuestionnaire[] = (
   formState: any,
@@ -351,6 +352,71 @@ export async function getCodeFromQuery(
     code: validCode.code,
     display: validCode.display,
   };
+}
+
+export async function lookupCode(
+  code: string,
+  display: string,
+  type: keyof typeof VALUESET_SYSTEM_NAMES,
+) {
+  try {
+    const results = (await API.valuesets.expand(type, code)).results;
+    if (!results || !results.length) {
+      console.warn("No results found for code: ", code, "of type: ", type);
+      return null;
+    }
+    const valueset = results[0];
+    const synonyms = valueset.designation
+      .map((designation) =>
+        designation.use.display?.toLowerCase() === "synonym"
+          ? { name: designation.value }
+          : null,
+      )
+      .filter((s) => s !== null);
+
+    // Fuzzy match the display name
+    const fuse = new Fuse([...synonyms, { name: valueset.display }], {
+      keys: ["name"],
+      ignoreLocation: true,
+      includeScore: true,
+      threshold: 0.6,
+    });
+
+    const result = fuse.search(display);
+    if (!result.length) {
+      console.warn(
+        "No matching code found for display: ",
+        display,
+        "of type: ",
+        type,
+        "with code: ",
+        code,
+        synonyms ? synonyms.map((s) => s.name).join(", ") : "No synonyms found",
+      );
+      return null;
+    } else {
+      console.log(
+        "Found matching code for display: ",
+        display,
+        "of type: ",
+        type,
+        "with code: ",
+        code,
+        synonyms ? synonyms.map((s) => s.name).join(", ") : "No synonyms found",
+        "with matching score: ",
+        result[0].score,
+      );
+    }
+
+    return {
+      system: valueset.system,
+      code: valueset.code,
+      display: valueset.display,
+    };
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
 }
 
 export const constructFieldId = (names: string[]) =>

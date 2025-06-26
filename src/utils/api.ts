@@ -131,14 +131,18 @@ export const API = {
   },
   valuesets: {
     expand: (system: string, query: string) =>
-      request<{ results: Code[] }>(
-        `/api/v1/valueset/${system}/expand/`,
-        "POST",
-        {
-          search: query,
-          count: 10,
-        },
-      ),
+      request<{
+        results: (Code & {
+          designation: {
+            language: string;
+            use: Code;
+            value: string;
+          }[];
+        })[];
+      }>(`/api/v1/valueset/${system}/expand/`, "POST", {
+        search: query,
+        count: 10,
+      }),
   },
   files: {
     get: (fileId: string, fileType: string, associatingId: string) =>

@@ -105,6 +105,12 @@ export type ScribeModel = {
         [key: string]: unknown;
       };
     }[];
+    processed_ai_response?: {
+      successful: ScribeAIResponse;
+      failed: {
+        [field_id: string]: string[];
+      };
+    };
     chat_model?: string;
     audio_model?: string;
     error?: string;
@@ -116,11 +122,12 @@ export type ScribeModel = {
 };
 
 export type ScribeCreateRequest = {
-  status: ScribeModel["status"];
+  status?: ScribeModel["status"];
   form_data?: ScribeModel["form_data"];
   requested_in_facility_id?: string;
   requested_in_encounter_id?: string;
   transcript?: ScribeModel["transcript"];
+  processed_ai_response?: ScribeModel["meta"]["processed_ai_response"];
 };
 
 export type ScribeStatus =

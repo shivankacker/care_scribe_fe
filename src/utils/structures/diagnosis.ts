@@ -1,8 +1,9 @@
 import { Structure } from ".";
 import { z } from "zod";
 import { Code } from "@/types";
-import { getCodeFromQuery } from "../utils";
+import { lookupCode } from "../utils";
 import dedent from "dedent-js";
+import dayjs from "dayjs";
 
 const CLINICAL_STATUS = [
   "active",
@@ -36,7 +37,14 @@ interface Diagnosis {
 
 const toolStructure = z.array(
   z.object({
-    diagnosis: z.string(),
+    snomed_info: z.object({
+      code: z
+        .string()
+        .describe(
+          "The code for the diagnosis according to http://snomed.info/sct",
+        ),
+      display: z.string().describe("The display name for the diagnosis"),
+    }),
     clinical_status: z.enum(CLINICAL_STATUS),
     verification_status: z.enum(VERIFICATION_STATUS),
     onset_datetime: z
@@ -62,13 +70,14 @@ export const diagnosisStructure: Structure<Diagnosis[], typeof toolStructure> =
     deserialize: async (data, currentData) => {
       const errors: string[] = [];
       const d = data.map(async (diagnosis) => {
-        const code = await getCodeFromQuery(
-          diagnosis.diagnosis,
+        const code = await lookupCode(
+          diagnosis.snomed_info.code,
+          diagnosis.snomed_info.display,
           "system-condition-code",
         );
         if (!code) {
           errors.push(
-            `Copilot could not find a diagnosis that matches with ${diagnosis.diagnosis}. Please enter manually.`,
+            `Could not find a diagnosis that matches with ${diagnosis.snomed_info.display}. Please enter manually.`,
           );
           return undefined;
         }
@@ -109,7 +118,7 @@ export const diagnosisStructure: Structure<Diagnosis[], typeof toolStructure> =
         - Diagnosis: ${diagnosis.code.display}
         - Clinical Status: ${diagnosis.clinical_status}, 
         - Verification Status: ${diagnosis.verification_status}, 
-        - Onset: ${diagnosis.onset.onset_datetime}
+        - Onset: ${dayjs(diagnosis.onset.onset_datetime).format("DD/MM/YYYY HH:mm")}
         - Category: ${diagnosis.category}
         ${diagnosis.recorded_date ? `- Recorded Date: ${diagnosis.recorded_date}` : ""}
         ${diagnosis.note ? `- Note: ${diagnosis.note}` : ""}

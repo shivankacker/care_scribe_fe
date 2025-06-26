@@ -1,8 +1,9 @@
 import { Structure } from ".";
 import { z } from "zod";
 import { Code } from "@/types";
-import { getCodeFromQuery } from "../utils";
+import { lookupCode } from "../utils";
 import dedent from "dedent-js";
+import dayjs from "dayjs";
 
 const CLINICAL_STATUS = ["active", "inactive", "resolved"] as const;
 
@@ -30,7 +31,14 @@ interface AllergyIntolerance {
 
 const toolStructure = z.array(
   z.object({
-    allergy: z.string(),
+    snomed_info: z.object({
+      code: z
+        .string()
+        .describe(
+          "The code for the allergy according to http://snomed.info/sct",
+        ),
+      display: z.string().describe("The display name for the allergy"),
+    }),
     clinical_status: z.enum(CLINICAL_STATUS),
     category: z.enum(CATEGORY).optional(),
     criticality: z.enum(CRITICALITY).optional(),
@@ -53,13 +61,14 @@ export const allergyIntoleranceStructure: Structure<
   deserialize: async (data, currentData) => {
     const errors: string[] = [];
     const d = data.map(async (allergyIntolerance) => {
-      const code = await getCodeFromQuery(
-        allergyIntolerance.allergy,
+      const code = await lookupCode(
+        allergyIntolerance.snomed_info.code,
+        allergyIntolerance.snomed_info.display,
         "system-allergy-code",
       );
       if (!code) {
         errors.push(
-          `Copilot could not find an allergy that matches with ${allergyIntolerance.allergy}. Please enter manually.`,
+          `Could not find an allergy that matches with ${allergyIntolerance.snomed_info.display}. Please enter manually.`,
         );
         return undefined;
       }
@@ -100,7 +109,7 @@ export const allergyIntoleranceStructure: Structure<
         - Category: ${allergyIntolerance.category},
         - Criticality: ${allergyIntolerance.criticality},
         - Verification Status: ${allergyIntolerance.verification_status},
-        - Last Occurrence: ${allergyIntolerance.last_occurrence || "N/A"},
+        - Last Occurrence: ${dayjs(allergyIntolerance.last_occurrence).format("DD/MM/YYYY HH:mm") || "N/A"},
         ${allergyIntolerance.note ? `- Note: ${allergyIntolerance.note}` : ""}
         `,
       )

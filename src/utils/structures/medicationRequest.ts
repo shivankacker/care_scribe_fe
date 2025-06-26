@@ -1,7 +1,7 @@
 import { Structure } from ".";
 import { z } from "zod";
 import { Code } from "@/types";
-import { getCodeFromQuery } from "../utils";
+import { lookupCode } from "../utils";
 import {
   BOUNDS_DURATION_UNITS,
   DOSAGE_UNITS_CODES,
@@ -10,6 +10,7 @@ import {
   MEDICATION_REQUEST_TIMING_OPTIONS,
 } from "../constants";
 import dedent from "dedent-js";
+import dayjs from "dayjs";
 
 const CATEGORY = ["inpatient", "outpatient", "community", "discharge"] as const;
 const PRIORITY = ["stat", "urgent", "asap", "routine"] as const;
@@ -31,10 +32,24 @@ const toolStructure = z.array(
     intent: z.enum(MEDICATION_REQUEST_INTENT).optional(),
     category: z.enum(CATEGORY).default("inpatient"),
     priority: z.enum(PRIORITY).default("stat"),
-    medicine: z.string().describe("The medicine to prescribe"),
+    medicine: z.object({
+      code: z
+        .string()
+        .describe(
+          "The snomedct code for the medicine to prescribe according to http://snomed.info/sct",
+        ),
+      display: z.string().describe("The display name for the medicine"),
+    }),
     authored_on: z.string().default(new Date().toISOString()),
     dosage_instructions: z
-      .string()
+      .object({
+        code: z
+          .string()
+          .describe(
+            "The snomedct code for the instruction according to http://snomed.info/sct",
+          ),
+        display: z.string().describe("The display name for the instruction"),
+      })
       .optional()
       .describe(
         "To indicate when the medication should be taken or until when it should be taken, etc.",
@@ -58,25 +73,55 @@ const toolStructure = z.array(
       ) as [string],
     ),
     dosage_as_needed_for: z
-      .string()
+      .object({
+        code: z
+          .string()
+          .describe(
+            "The snomedct code for the indicator/reason according to http://snomed.info/sct",
+          ),
+        display: z
+          .string()
+          .describe("The display name for the indicator/reason"),
+      })
       .optional()
       .describe(
         "The indicator. Only required if the medication is PRN or as-needed",
       ),
     dosage_site: z
-      .string()
+      .object({
+        code: z
+          .string()
+          .describe(
+            "The snomedct code for the dosage site according to http://snomed.info/sct",
+          ),
+        display: z.string().describe("The display name for the dosage site"),
+      })
       .optional()
       .describe(
         "The site the medication should be administered at. Only required if medication is PRN or as-needed",
       ),
     dosage_route: z
-      .string()
+      .object({
+        code: z
+          .string()
+          .describe(
+            "The snomedct code for the dosage route according to http://snomed.info/sct",
+          ),
+        display: z.string().describe("The display name for the dosage route"),
+      })
       .optional()
       .describe(
         "The route of administration. Only required if medication is PRN or as-needed",
       ),
     dosage_method: z
-      .string()
+      .object({
+        code: z
+          .string()
+          .describe(
+            "The snomedct code for the dosage method according to http://snomed.info/sct",
+          ),
+        display: z.string().describe("The display name for the dosage method"),
+      })
       .optional()
       .describe(
         "The method of administration. Only required if medication is PRN or as-needed",
@@ -164,48 +209,56 @@ export const medicationRequestStructure: Structure<
     const errors: string[] = [];
 
     const parsed = data.map(async (medicationRequest) => {
-      const code = await getCodeFromQuery(
-        medicationRequest.medicine,
+      const code = await lookupCode(
+        medicationRequest.medicine.code,
+        medicationRequest.medicine.display,
         "system-medication",
       );
+      if (!code) {
+        errors.push(
+          `Could not find a medication that matches with ${medicationRequest.medicine.display}. Please enter manually.`,
+        );
+        return undefined;
+      }
       const additionalInstructions = medicationRequest.dosage_instructions
-        ? await getCodeFromQuery(
-            medicationRequest.dosage_instructions,
+        ? await lookupCode(
+            medicationRequest.dosage_instructions.code,
+            medicationRequest.dosage_instructions.display,
             "system-additional-instruction",
           )
         : undefined;
 
       const asNeededFor = medicationRequest.dosage_as_needed_for
-        ? await getCodeFromQuery(
-            medicationRequest.dosage_as_needed_for,
+        ? await lookupCode(
+            medicationRequest.dosage_as_needed_for.code,
+            medicationRequest.dosage_as_needed_for.display,
             "system-as-needed-reason",
           )
         : undefined;
 
       const site = medicationRequest.dosage_site
-        ? await getCodeFromQuery(
-            medicationRequest.dosage_site,
+        ? await lookupCode(
+            medicationRequest.dosage_site.code,
+            medicationRequest.dosage_site.display,
             "system-body-site",
           )
         : undefined;
 
       const route = medicationRequest.dosage_route
-        ? await getCodeFromQuery(medicationRequest.dosage_route, "system-route")
-        : undefined;
-
-      const method = medicationRequest.dosage_method
-        ? await getCodeFromQuery(
-            medicationRequest.dosage_method,
-            "system-administration-method",
+        ? await lookupCode(
+            medicationRequest.dosage_route.code,
+            medicationRequest.dosage_route.display,
+            "system-route",
           )
         : undefined;
 
-      if (!code) {
-        errors.push(
-          `Copilot could not find a medication that matches with ${medicationRequest.medicine}. Please enter manually.`,
-        );
-        return undefined;
-      }
+      const method = medicationRequest.dosage_method
+        ? await lookupCode(
+            medicationRequest.dosage_method.code,
+            medicationRequest.dosage_method.display,
+            "system-administration-method",
+          )
+        : undefined;
 
       const dosageTiming = Object.values(
         MEDICATION_REQUEST_TIMING_OPTIONS,
@@ -382,7 +435,7 @@ export const medicationRequestStructure: Structure<
         - Intent: ${medicationRequest.intent || "unknown"}
         - Category: ${medicationRequest.category || "inpatient"}
         - Priority: ${medicationRequest.priority || "stat"}
-        - Authored On: ${medicationRequest.authored_on}
+        - Authored On: ${dayjs(medicationRequest.authored_on).format("DD/MM/YYYY HH:mm")}
         - Dosage Instructions: ${medicationRequest.dosage_instruction.map(
           (instruction) => {
             return `

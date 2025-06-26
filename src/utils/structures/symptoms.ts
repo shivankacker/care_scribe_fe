@@ -1,8 +1,9 @@
 import { Structure } from ".";
 import { z } from "zod";
 import { Code } from "@/types";
-import { getCodeFromQuery } from "../utils";
+import { lookupCode } from "../utils";
 import dedent from "dedent-js";
+import dayjs from "dayjs";
 
 const CLINICAL_STATUS = [
   "active",
@@ -35,7 +36,14 @@ interface Symptom {
 
 const toolStructure = z.array(
   z.object({
-    symptom: z.string(),
+    snomed_info: z.object({
+      code: z
+        .string()
+        .describe(
+          "The code for the symptom according to http://snomed.info/sct",
+        ),
+      display: z.string().describe("The display name for the symptom"),
+    }),
     clinical_status: z.enum(CLINICAL_STATUS),
     verification_status: z.enum(VERIFICATION_STATUS),
     severity: z.enum(SEVERITY),
@@ -57,13 +65,14 @@ export const symptomsStructure: Structure<Symptom[], typeof toolStructure> = {
   deserialize: async (data, currentData) => {
     const errors: string[] = [];
     const d = data.map(async (symptom) => {
-      const code = await getCodeFromQuery(
-        symptom.symptom,
+      const code = await lookupCode(
+        symptom.snomed_info.code,
+        symptom.snomed_info.display,
         "system-condition-code",
       );
       if (!code) {
         errors.push(
-          `Copilot could not find a symptom that matches with ${symptom.symptom}. Please enter manually.`,
+          `Could not find a symptom that matches with ${symptom.snomed_info.display}. Please enter manually.`,
         );
         return undefined;
       }
@@ -102,7 +111,7 @@ export const symptomsStructure: Structure<Symptom[], typeof toolStructure> = {
         - Clinical Status: ${symptom.clinical_status}, 
         - Verification Status: ${symptom.verification_status}, 
         - Severity: ${symptom.severity}, 
-        - Onset: ${symptom.onset.onset_datetime}`,
+        - Onset: ${dayjs(symptom.onset.onset_datetime).format("DD/MM/YYYY HH:mm")}`,
       )
       .join("\n");
   },

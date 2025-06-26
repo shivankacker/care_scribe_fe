@@ -1,9 +1,10 @@
 import { Structure } from ".";
 import { z } from "zod";
 import { Code } from "@/types";
-import { getCodeFromQuery } from "../utils";
+import { lookupCode } from "../utils";
 import { MEDICATION_STATEMENT_STATUS } from "../constants";
 import dedent from "dedent-js";
+import dayjs from "dayjs";
 
 export const INFORMATION_SOURCE = [
   "patient",
@@ -16,7 +17,14 @@ const toolStructure = z.array(
     status: z.enum(MEDICATION_STATEMENT_STATUS),
     dosage_instructions: z.string().optional(),
     information_source: z.enum(INFORMATION_SOURCE),
-    medication: z.string().describe("The medication that has been requested"),
+    medication: z.object({
+      code: z
+        .string()
+        .describe(
+          "The snomedct code for the medicine according to http://snomed.info/sct",
+        ),
+      display: z.string().describe("The display name for the medicine"),
+    }),
     note: z.string().optional(),
     reason: z.string().optional(),
     take_from: z
@@ -64,14 +72,15 @@ export const medicationStatementStructure: Structure<
     const errors: string[] = [];
 
     const parsed = data.map(async (medicationStatement) => {
-      const code = await getCodeFromQuery(
-        medicationStatement.medication,
+      const code = await lookupCode(
+        medicationStatement.medication.code,
+        medicationStatement.medication.display,
         "system-medication",
       );
 
       if (!code) {
         errors.push(
-          `Copilot could not find a medication that matches with ${medicationStatement.medication}. Please enter manually.`,
+          `Could not find a medication that matches with ${medicationStatement.medication.display}. Please enter manually.`,
         );
         return undefined;
       }
@@ -116,7 +125,7 @@ export const medicationStatementStructure: Structure<
         - Status: ${medicationStatement.status}
         - Dosage Instructions: ${medicationStatement.dosage_text || "N/A"}
         - Information Source: ${medicationStatement.information_source || "N/A"}
-        - Effective Period: ${medicationStatement.effective_period ? `${medicationStatement.effective_period.start} to ${medicationStatement.effective_period.end}` : "N/A"}
+        - Effective Period: ${medicationStatement.effective_period ? `${dayjs(medicationStatement.effective_period.start).format("DD/MM/YYYY HH:mm")} to ${dayjs(medicationStatement.effective_period.end).format("DD/MM/YYYY HH:mm")}` : "N/A"}
         ${medicationStatement.note ? `- Note: ${medicationStatement.note}` : ""}
         ${medicationStatement.reason ? `- Reason: ${medicationStatement.reason}` : ""}
       `,
